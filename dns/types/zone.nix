@@ -56,6 +56,42 @@ let
     else
       throw "Cannot merge definitions of `${showOption loc}'. Definition values:${showDefs defs}";
 
+  uniqueList =
+    listType:
+    with lib;
+    mkOptionType rec {
+      name = "uniqueList";
+      description = "";
+      merge = loc: defs: lib.lists.unique (listType.merge loc defs);
+    };
+
+  coercedToCustom =
+    coercedType: coerceFunc: finalType:
+    with lib;
+    types.mkOptionType rec {
+      name = "coercedTo";
+      description = "${optionDescriptionPhrase (class: class == "noun") finalType} or ${
+        optionDescriptionPhrase (class: class == "noun") coercedType
+      } convertible to it";
+      check = x: (coercedType.check x && finalType.check (coerceFunc x)) || finalType.check x;
+      merge =
+        loc: defs:
+        let
+          coerceVal = val: coerceFunc val;
+        in
+        finalType.merge loc (map (def: def // { value = coerceVal def.value; }) defs);
+      emptyValue = finalType.emptyValue;
+      getSubOptions = finalType.getSubOptions;
+      getSubModules = finalType.getSubModules;
+      substSubModules = m: coercedToCustom coercedType coerceFunc (finalType.substSubModules m);
+      typeMerge = t1: t2: null;
+      functor = (defaultFunctor name) // {
+        wrapped = finalType;
+      };
+      nestedTypes.coercedType = coercedType;
+      nestedTypes.finalType = finalType;
+    };
+
   toStringType = mkOptionType {
     name = "toStringType";
     description = "";
@@ -82,7 +118,7 @@ let
     // mapAttrs (
       n: t:
       mkOption rec {
-        type = types.listOf (recordType t);
+        type = uniqueList (types.listOf (recordType t));
         default = [ ];
         # example = [ t.example ];  # TODO: any way to auto-generate an example for submodule?
         description = "List of ${n} records for this zone/subzone";
