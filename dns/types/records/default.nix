@@ -19,6 +19,7 @@ let
     "NS"
     "SOA"
     "SRV"
+    "TLSA"
     "TXT"
     "PTR"
 
